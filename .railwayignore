@@ -1,0 +1,46 @@
+# Git
+.git
+.github
+.pytest_cache
+
+# Python cache & virtualenvs
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.venv
+venv/
+
+# Node dependencies and build artifacts
+node_modules/
+**/node_modules/
+.next/
+**/dist/
+**/build/
+
+# Media & Demo videos/images
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.png
+*.jpg
+*.jpeg
+*.gif
+uploads/
+output/
+scratch/
+temp_*
+screenshots/
+churchil_q*
+demo-openshorts*
+
+# Large ML weights (downloaded on demand or via faster-whisper)
+*.pt
+*.bin
+
+# Secrets
+.env
+.env.*
+!.env.example
