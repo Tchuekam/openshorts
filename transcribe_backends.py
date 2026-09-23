@@ -111,8 +111,28 @@ def _get_whisper_model():
     with _whisper_lock:
         if _whisper_model is None or _whisper_key != key:
             from faster_whisper import WhisperModel
-            _whisper_model = WhisperModel(key[0], device=key[1], compute_type=key[2])
-            _whisper_key = key
+            # 1. Try local cache first to avoid unnecessary network/DNS overhead or failures
+            try:
+                _whisper_model = WhisperModel(key[0], device=key[1], compute_type=key[2], local_files_only=True)
+                _whisper_key = key
+            except Exception:
+                # 2. Not cached or needs download: fetch with retries for transient DNS/connection blips
+                last_err = None
+                for attempt in range(1, 4):
+                    try:
+                        _whisper_model = WhisperModel(key[0], device=key[1], compute_type=key[2])
+                        _whisper_key = key
+                        break
+                    except Exception as e:
+                        last_err = e
+                        err_msg = str(e).lower()
+                        if attempt < 3 and any(k in err_msg for k in ("connect", "getaddrinfo", "timeout", "offline", "socket")):
+                            print(f"⚠️ [ASR] Whisper model download hit network issue ({e}) — retrying ({attempt}/3)...", flush=True)
+                            time.sleep(2 * attempt)
+                        else:
+                            raise
+                if _whisper_model is None and last_err:
+                    raise last_err
     return _whisper_model, cfg["device"]
 
 

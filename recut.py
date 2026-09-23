@@ -235,7 +235,8 @@ def run_cut_concat(input_path, segments, out_path, workdir, runner=None):
             for part in part_paths:
                 # Absolute paths: the concat demuxer resolves relative entries
                 # against the LIST FILE's directory, not the process cwd.
-                f.write(f"file '{os.path.abspath(part)}'\n")
+                clean_path = os.path.abspath(part).replace("\\", "/")
+                f.write(f"file '{clean_path}'\n")
         run(concat_command(list_path, out_path))
     finally:
         for path in part_paths + [list_path]:

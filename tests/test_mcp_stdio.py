@@ -27,14 +27,15 @@ MESSAGES = [
 
 @pytest.fixture(scope="module")
 def responses():
-    env = dict(os.environ, BILLING_ENABLED="0", PYTHONPATH=REPO)
+    env = dict(os.environ, BILLING_ENABLED="0", PYTHONPATH=REPO, PYTHONIOENCODING="utf-8")
     env.pop("PROXY_URL", None)
     proc = subprocess.run(
         [sys.executable, "-u", os.path.join(REPO, "mcp_stdio.py")],
         input="".join(json.dumps(m) + "\n" for m in MESSAGES),
-        capture_output=True, text=True, cwd=REPO, env=env, timeout=300,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=REPO, env=env, timeout=300,
     )
-    assert proc.returncode == 0, proc.stderr[-2000:]
+    stderr = proc.stderr or ""
+    assert proc.returncode == 0, stderr[-2000:]
     return [json.loads(line) for line in proc.stdout.splitlines() if line.strip()]
 
 

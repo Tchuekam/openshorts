@@ -130,4 +130,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=2 \
   CMD curl -sf http://127.0.0.1:8000/health/ready > /dev/null || exit 1
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "15"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*' --timeout-graceful-shutdown 15"]

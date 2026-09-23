@@ -29,9 +29,9 @@ QUALITY_FAST = "quality_fast"  # was: -preset fast -crf 18
 DELIVERY = "delivery"          # was: -preset fast -crf 22
 
 _X264_ARGS = {
-    QUALITY: ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18"],
-    QUALITY_FAST: ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"],
-    DELIVERY: ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22"],
+    QUALITY: ["-c:v", "libx264", "-preset", "medium", "-crf", "18"],
+    QUALITY_FAST: ["-c:v", "libx264", "-preset", "fast", "-crf", "18"],
+    DELIVERY: ["-c:v", "libx264", "-preset", "fast", "-crf", "22"],
 }
 
 # Windows MediaFoundation Hardware Acceleration (h264_mf)
@@ -235,7 +235,7 @@ def video_encode_args(tier=QUALITY):
     if tier not in _X264_ARGS:
         raise ValueError(f"Unknown encode tier: {tier!r}")
 
-    mode = os.environ.get("FFMPEG_ENCODER", "auto").strip().lower()
+    mode = os.environ.get("FFMPEG_ENCODER", "x264").strip().lower()
     selected_encoder = "libx264"
     selected_args = _X264_ARGS
 
@@ -247,9 +247,6 @@ def video_encode_args(tier=QUALITY):
         selected_args = _MF_ARGS
     elif mode == "nvenc":
         print("⚠️ [Encoder] FFMPEG_ENCODER=nvenc requested but not available — falling back")
-        if mf_available():
-            selected_encoder = "h264_mf"
-            selected_args = _MF_ARGS
     elif mode == "mf":
         if mf_available():
             selected_encoder = "h264_mf"

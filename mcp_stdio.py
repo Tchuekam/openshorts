@@ -26,6 +26,13 @@ import json
 import os
 import sys
 
+for _s in (sys.stdout, sys.stderr, sys.stdin):
+    if hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 # Must happen before importing app: import-time prints would land on stdout.
 _PROTOCOL_OUT = sys.stdout
 sys.stdout = sys.stderr
@@ -81,13 +88,27 @@ def _write(response: dict) -> None:
 async def _stdin_lines():
     """Yield stdin lines without blocking the loop (tool calls run for minutes)."""
     loop = asyncio.get_running_loop()
-    reader = asyncio.StreamReader()
-    await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
-    while True:
-        line = await reader.readline()
-        if not line:  # EOF: the host closed the pipe
-            return
-        yield line
+    if sys.platform == "win32":
+        while True:
+            line = await loop.run_in_executor(None, sys.stdin.readline)
+            if not line:
+                return
+            yield line
+    else:
+        try:
+            reader = asyncio.StreamReader()
+            await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
+            while True:
+                line = await reader.readline()
+                if not line:  # EOF: the host closed the pipe
+                    return
+                yield line
+        except (NotImplementedError, OSError):
+            while True:
+                line = await loop.run_in_executor(None, sys.stdin.readline)
+                if not line:
+                    return
+                yield line
 
 
 async def _serve() -> None:

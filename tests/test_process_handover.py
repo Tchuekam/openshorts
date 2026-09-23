@@ -140,6 +140,7 @@ def test_handover_still_requires_attestation(dirs, session):
 def test_url_wins_over_session_id(dirs, session, monkeypatch):
     """A request carrying both keeps the historical URL behavior untouched."""
     monkeypatch.setattr(app_module, "QUALITY_GATE_MIN_HEIGHT", 0)
+    monkeypatch.setattr(app_module, "MIN_SOURCE_SECONDS", 0)
     resp = _post_process({
         "thumbnail_session_id": "sess1",
         "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",

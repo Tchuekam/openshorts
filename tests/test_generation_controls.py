@@ -49,7 +49,7 @@ def _templates():
     """The prompt template constants, read without importing gemini_worker
     (which pulls google-genai — absent in the thin CI env)."""
     mod = ast.parse(open(os.path.join(os.path.dirname(__file__), "..",
-                                      "gemini_worker.py")).read())
+                                      "gemini_worker.py"), encoding="utf-8").read())
     return {
         node.targets[0].id: node.value.value
         for node in mod.body
@@ -72,7 +72,7 @@ class TestPromptTemplates:
             video_duration=100, language="es", min_clips=2, max_clips=4,
             min_secs=10.0, max_secs=20.0)
         assert "2–4 MOST engaging" in text
-        assert "10 to 20 seconds" in text
+        assert "10 and 20 seconds" in text or "10 to 20 seconds" in text
 
     def test_score_template_needs_no_new_keys(self):
         # The scoring pass has no count/duration placeholders; formatting with

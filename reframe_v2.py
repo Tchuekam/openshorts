@@ -108,8 +108,8 @@ def scene_frame_ranges(scene_boundaries, strategies, total_frames):
 
 def concat_list_content(segment_paths):
     # Single quotes per concat-demuxer spec; our paths are tempfile-generated
-    # (no quotes in them).
-    return "".join(f"file '{p}'\n" for p in segment_paths)
+    # (no quotes in them). Normalize backslashes for FFmpeg concat demuxer on Windows.
+    return "".join("file '" + p.replace("\\", "/") + "'\n" for p in segment_paths)
 
 
 # How much of the frame height the real content should fill in GENERAL layout.
