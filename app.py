@@ -6365,3 +6365,46 @@ async def saasshorts_voices(
         ],
         "source": "defaults",
     }
+
+
+# ---------------------------------------------------------------------------
+# Dashboard SPA static serving (Frontend Interface)
+# ---------------------------------------------------------------------------
+DASHBOARD_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard", "dist"))
+
+if os.path.isdir(DASHBOARD_DIST):
+    _assets_dir = os.path.join(DASHBOARD_DIST, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="dashboard-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_dashboard_spa(full_path: str):
+        # Exclude reserved backend paths so unmatched API routes still 404 properly
+        reserved_prefixes = (
+            "api",
+            "health",
+            "videos",
+            "thumbnails",
+            "docs",
+            "openapi.json",
+            "mcp",
+            "redoc",
+        )
+        for prefix in reserved_prefixes:
+            if full_path == prefix or full_path.startswith(f"{prefix}/"):
+                raise HTTPException(status_code=404, detail="Not Found")
+
+        if full_path:
+            direct_path = os.path.join(DASHBOARD_DIST, full_path)
+            if os.path.isfile(direct_path):
+                return FileResponse(direct_path)
+            html_path = os.path.join(DASHBOARD_DIST, f"{full_path}.html")
+            if os.path.isfile(html_path):
+                return FileResponse(html_path)
+
+        index_file = os.path.join(DASHBOARD_DIST, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Not Found")
+

@@ -1,3 +1,13 @@
+# Multi-stage: build React frontend dashboard
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/dashboard
+COPY dashboard/package.json dashboard/package-lock.json* ./
+RUN npm install
+COPY dashboard/ ./
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
 # Multi-stage build for smaller final image
 FROM python:3.11-slim AS builder
 
@@ -82,6 +92,9 @@ RUN pip install --upgrade --pre --no-cache-dir "yt-dlp[default]" bgutil-ytdlp-po
 
 # Copy application code
 COPY . .
+
+# Copy pre-built frontend dashboard from frontend-builder
+COPY --from=frontend-builder /app/dashboard/dist /app/dashboard/dist
 
 # Register the bundled fonts (Anton for Impact) and the UI-name -> real-font
 # aliases with fontconfig so libass resolves what the subtitle modal offers.
