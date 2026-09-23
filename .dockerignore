@@ -47,9 +47,14 @@ videos/
 *.pem
 *.key
 
+# Dynamic runtime dirs
+uploads/
+output/
+scratch/
+temp_*
+
 # Docker
-Dockerfile
-docker-compose.yml
+docker-compose*.yml
 .dockerignore
 
 # Docs
