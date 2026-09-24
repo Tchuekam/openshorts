@@ -2032,7 +2032,14 @@ async def run_job(job_id, job_data):
                  jobs[job_id]['logs'].append("No metadata file generated.")
         else:
             jobs[job_id]['status'] = 'failed'
-            jobs[job_id]['logs'].append(_scrub_secrets(f"Process failed with exit code {returncode}"))
+            if returncode in (-9, 137):
+                err_msg = (
+                    f"Process failed with exit code {returncode} (Out of Memory / SIGKILL). "
+                    "The container memory limit was exceeded. Try using a shorter video."
+                )
+                jobs[job_id]['logs'].append(_scrub_secrets(err_msg))
+            else:
+                jobs[job_id]['logs'].append(_scrub_secrets(f"Process failed with exit code {returncode}"))
             
     except Exception as e:
         jobs[job_id]['status'] = 'failed'

@@ -10,15 +10,12 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from scenedetect import open_video, SceneManager
 from scenedetect.detectors import ContentDetector
-from ultralytics import YOLO
-import torch
 import os
 import math
 import numpy as np
 from tqdm import tqdm
 import yt_dlp
-import mediapipe as mp
-# import whisper (replaced by faster_whisper inside function)
+# Models (YOLO, MediaPipe, Whisper) are loaded lazily on demand to avoid container OOM
 from google import genai
 from google.genai import types as genai_types
 
@@ -82,15 +79,33 @@ OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by pre
 }}
 """
 
-# Load the YOLO model once (Keep for backup or scene analysis if needed)
-# YOLO_MODEL_PATH lets deployments point at a pre-downloaded weights file so a
-# volume mounted over the workdir doesn't trigger a re-download at startup.
-model = YOLO(os.environ.get("YOLO_MODEL_PATH", "yolov8n.pt"))
+# Lazy model singletons: loaded on demand to prevent memory bloat and container OOM.
+# YOLO_MODEL_PATH lets deployments point at a pre-downloaded weights file.
+_yolo_model = None
+_face_detection = None
 
-# --- MediaPipe Setup ---
-# Use standard Face Detection (BlazeFace) for speed
-mp_face_detection = mp.solutions.face_detection
-face_detection = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
+def get_yolo_model():
+    global _yolo_model
+    if _yolo_model is None:
+        from ultralytics import YOLO
+        _yolo_model = YOLO(os.environ.get("YOLO_MODEL_PATH", "yolov8n.pt"))
+    return _yolo_model
+
+def get_face_detector():
+    global _face_detection
+    if _face_detection is None:
+        import mediapipe as mp
+        _face_detection = mp.solutions.face_detection.FaceDetection(
+            model_selection=1, min_detection_confidence=0.5
+        )
+    return _face_detection
+
+def __getattr__(name):
+    if name == "model":
+        return get_yolo_model()
+    if name == "face_detection":
+        return get_face_detector()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 # Consecutive detections a large target move must survive before the camera
 # follows it (see SmoothedCameraman.update_target). Env-overridable so the
@@ -437,7 +452,7 @@ def detect_face_candidates(frame):
     small, _scale = _detection_frame(frame)
     rgb_frame = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     with DETECT_LOCK:
-        results = face_detection.process(rgb_frame)
+        results = get_face_detector().process(rgb_frame)
     
     candidates = []
     
@@ -465,9 +480,8 @@ def detect_person_yolo(frame):
     ORIGINAL frame coordinates (inference runs on a downscaled copy).
     """
     small, scale = _detection_frame(frame)
-    # Use the globally loaded model
     with DETECT_LOCK:
-        results = model(small, verbose=False, classes=[0]) # class 0 is person
+        results = get_yolo_model()(small, verbose=False, classes=[0]) # class 0 is person
 
     if not results:
         return None
@@ -1534,9 +1548,14 @@ def clear_transcript_checkpoint(output_dir):
 
 def transcribe_video(video_path):
     print("🎙️  Transcribing video...")
-    from transcribe_backends import transcribe_media
+    from transcribe_backends import transcribe_media, release_models
+    import gc
 
-    transcript = transcribe_media(video_path)
+    try:
+        transcript = transcribe_media(video_path)
+    finally:
+        release_models()
+        gc.collect()
 
     print(f"   Detected language '{transcript['language']}', "
           f"{len(transcript['segments'])} segments")
@@ -2143,7 +2162,8 @@ if __name__ == '__main__':
                     if os.path.exists(clip_temp_path):
                         os.remove(clip_temp_path)
 
-            clip_workers = max(int(os.environ.get("CLIP_WORKERS", "3")), 1)
+            default_workers = "2" if (os.cpu_count() or 1) >= 4 else "1"
+            clip_workers = max(int(os.environ.get("CLIP_WORKERS", default_workers)), 1)
             shorts = clips_data['shorts']
             with ThreadPoolExecutor(max_workers=min(clip_workers, len(shorts))) as pool:
                 futures = {pool.submit(_process_one_clip, i, clip): i

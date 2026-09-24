@@ -2100,8 +2100,17 @@ function App() {
                         </p>
                       </div>
                     ) : status === 'error' ? (
-                      <div className="h-full min-h-[120px] flex flex-col items-center justify-center text-danger space-y-2">
-                        <p>Generation failed.</p>
+                      <div className="h-full min-h-[140px] flex flex-col items-center justify-center text-danger space-y-3 text-center px-4">
+                        <p className="font-semibold text-base">Generation failed</p>
+                        <p className="text-xs text-muted max-w-[40ch] leading-relaxed">
+                          {logs.filter(l => l.includes('exit code') || l.includes('Error') || l.includes('failed') || l.includes('Memory')).slice(-1)[0] || "An unexpected error occurred during processing."}
+                        </p>
+                        <button
+                          onClick={() => { setStatus('idle'); setLogs([]); }}
+                          className="btn-ghost text-xs px-3 py-1.5 border border-border/40 hover:border-danger/60 rounded"
+                        >
+                          Try Again
+                        </button>
                       </div>
                     ) : null
                   )}

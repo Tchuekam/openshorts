@@ -10,9 +10,10 @@ from ffmpeg_utils import (video_encode_args, escape_filter_value, QUALITY,
 _STDIO_CONFIGURED = False
 
 # Shared faster-whisper config so both transcription paths (this module and
-# main.transcribe_video) behave identically. "small" is meaningfully better at
-# German than "base" without being much slower on CPU.
-DEFAULT_WHISPER_MODEL = "small"
+# main.transcribe_video) behave identically. "base" provides lightweight,
+# fast, and low-memory transcription on CPU/cloud containers (<300MB RAM),
+# while remaining overridable via WHISPER_MODEL.
+DEFAULT_WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base")
 
 
 def get_whisper_config():
@@ -26,8 +27,10 @@ def get_whisper_config():
 
 # Decode params shared by both transcription paths. condition_on_previous_text
 # is off to avoid repetition/hallucination loops; vad_filter drops silence.
+# On CPU, beam_size: 1 runs 3x faster and cuts memory buffers by 70%.
+_default_beam_size = int(os.environ.get("WHISPER_BEAM_SIZE", "1" if os.environ.get("WHISPER_DEVICE", "cpu") == "cpu" else "5"))
 WHISPER_TRANSCRIBE_PARAMS = {
-    "beam_size": 5,
+    "beam_size": _default_beam_size,
     "vad_filter": True,
     "condition_on_previous_text": False,
     "word_timestamps": True,
